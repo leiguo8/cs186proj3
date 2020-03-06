@@ -69,73 +69,68 @@ class SortMergeOperator extends JoinOperator {
             nextRecord = null;
             leftRecord = leftIterator.next();
             rightRecord = rightIterator.next();
+            fetchNextRecord();
 
         }
 
-        /**
-         * Checks if there are more record(s) to yield
-         *
-         * @return true if this iterator has another record to yield, otherwise false
-         */
-        @Override
-        public boolean hasNext() {
-            // TODO(proj3_part1): implement
+        private void fetchNextRecord(){
             nextRecord = null;
             if(leftRecord == null){
-                return false;
+               throw new NoSuchElementException("end");
             }
-            else{
+            while(!hasNext()){
                 if(!marked){
                     while(leftRecord.getValues().get(SortMergeOperator.this.getLeftColumnIndex()).compareTo(
-                    rightRecord.getValues().get(SortMergeOperator.this.getRightColumnIndex())) < 0){
+                            rightRecord.getValues().get(SortMergeOperator.this.getRightColumnIndex())) < 0){
                         if(!leftIterator.hasNext()){
-                            return false;
+                            return;
                         }
                         leftRecord = leftIterator.next();
                     }
                     while(leftRecord.getValues().get(SortMergeOperator.this.getLeftColumnIndex()).compareTo(
                             rightRecord.getValues().get(SortMergeOperator.this.getRightColumnIndex())) > 0){
                         if(!rightIterator.hasNext()) {
-                            return false;
+                            return;
                         }
                         rightRecord = rightIterator.next();
                     }
                     rightIterator.markPrev();
                     marked = true;
                 }
-                if(leftRecord.getValues().get(SortMergeOperator.this.getLeftColumnIndex()).compareTo(
+                if(rightRecord != null && leftRecord.getValues().get(SortMergeOperator.this.getLeftColumnIndex()).compareTo(
                         rightRecord.getValues().get(SortMergeOperator.this.getRightColumnIndex())) == 0){
                     List<DataBox> leftValues = new ArrayList<>(leftRecord.getValues());
                     List<DataBox> rightValues = new ArrayList<>(rightRecord.getValues());
                     leftValues.addAll(rightValues);
                     this.nextRecord = new Record(leftValues);
-                    if(!rightIterator.hasNext()){
-                        rightIterator.reset();
-                        if(!leftIterator.hasNext()){
-                            leftRecord = null;
-                        }
-                        else {
-                            leftRecord = leftIterator.next();
-                        }
-                        marked = false;
-                    }
-                    else {
-                        rightRecord = rightIterator.next();
-                    }
-                    return true;
+                    rightRecord = rightIterator.hasNext() ? rightIterator.next() : null;
+                    return;
                 }
                 else{
                     rightIterator.reset();
+                    rightRecord = rightIterator.next();
                     if(!leftIterator.hasNext()){
                         leftRecord = null;
+                        return;
                     }
                     else {
                         leftRecord = leftIterator.next();
                     }
                     marked = false;
-                    return hasNext();
                 }
             }
+
+        }
+        /**
+         * Checks if there are more record(s) to yield
+         *
+         * @return true if this iterator has another record to yield, otherwise false
+         */
+
+        @Override
+        public boolean hasNext() {
+            // TODO(proj3_part1): implement
+            return this.nextRecord != null;
         }
 
         /**
@@ -147,10 +142,17 @@ class SortMergeOperator extends JoinOperator {
         @Override
         public Record next() {
             // TODO(proj3_part1): implement
-            if(hasNext()){
-                return nextRecord;
+            if (!this.hasNext()) {
+                throw new NoSuchElementException();
             }
-            return null;
+
+            Record nextRecord = this.nextRecord;
+            try {
+                this.fetchNextRecord();
+            } catch (NoSuchElementException e) {
+                this.nextRecord = null;
+            }
+            return nextRecord;
         }
 
         @Override
