@@ -164,6 +164,9 @@ public class TestJoinOperator {
             Record expectedRecord = new Record(expectedRecordValues);
 
             while (outputIterator.hasNext() && numRecords < 100 * 100) {
+                if(numRecords == 99){
+                    int x = 1;
+                }
                 assertEquals("mismatch at record " + numRecords, expectedRecord, outputIterator.next());
                 numRecords++;
             }
@@ -509,6 +512,9 @@ public class TestJoinOperator {
 
             int count = 0;
             while (outputIterator.hasNext() && count < 4 * 200 * 200) {
+                if(count == 80000 - 1){
+                    int x = 1;
+                }
                 Record r = outputIterator.next();
                 if (count < 200 * 200) {
                     assertEquals("mismatch at record " + count, expectedRecord3, r);

@@ -6,6 +6,7 @@ import edu.berkeley.cs186.database.TransactionContext;
 import edu.berkeley.cs186.database.common.iterator.BacktrackingIterator;
 import edu.berkeley.cs186.database.databox.DataBox;
 import edu.berkeley.cs186.database.table.Record;
+import edu.berkeley.cs186.database.table.Table;
 
 class SortMergeOperator extends JoinOperator {
     SortMergeOperator(QueryOperator leftSource,
@@ -58,6 +59,17 @@ class SortMergeOperator extends JoinOperator {
         private SortMergeIterator() {
             super();
             // TODO(proj3_part1): implement
+            SortOperator sortLeft = new SortOperator(getTransaction(),this.getLeftTableName(),new LeftRecordComparator());
+            SortOperator sortRight = new SortOperator(getTransaction(), this.getRightTableName(), new RightRecordComparator());
+            String left = sortLeft.sort();
+            String right = sortRight.sort();
+            leftIterator = SortMergeOperator.this.getRecordIterator(left);
+            rightIterator = SortMergeOperator.this.getRecordIterator(right);
+            marked = false;
+            nextRecord = null;
+            leftRecord = leftIterator.next();
+            rightRecord = rightIterator.next();
+
         }
 
         /**
@@ -68,8 +80,62 @@ class SortMergeOperator extends JoinOperator {
         @Override
         public boolean hasNext() {
             // TODO(proj3_part1): implement
-
-            return false;
+            nextRecord = null;
+            if(leftRecord == null){
+                return false;
+            }
+            else{
+                if(!marked){
+                    while(leftRecord.getValues().get(SortMergeOperator.this.getLeftColumnIndex()).compareTo(
+                    rightRecord.getValues().get(SortMergeOperator.this.getRightColumnIndex())) < 0){
+                        if(!leftIterator.hasNext()){
+                            return false;
+                        }
+                        leftRecord = leftIterator.next();
+                    }
+                    while(leftRecord.getValues().get(SortMergeOperator.this.getLeftColumnIndex()).compareTo(
+                            rightRecord.getValues().get(SortMergeOperator.this.getRightColumnIndex())) > 0){
+                        if(!rightIterator.hasNext()) {
+                            return false;
+                        }
+                        rightRecord = rightIterator.next();
+                    }
+                    rightIterator.markPrev();
+                    marked = true;
+                }
+                if(leftRecord.getValues().get(SortMergeOperator.this.getLeftColumnIndex()).compareTo(
+                        rightRecord.getValues().get(SortMergeOperator.this.getRightColumnIndex())) == 0){
+                    List<DataBox> leftValues = new ArrayList<>(leftRecord.getValues());
+                    List<DataBox> rightValues = new ArrayList<>(rightRecord.getValues());
+                    leftValues.addAll(rightValues);
+                    this.nextRecord = new Record(leftValues);
+                    if(!rightIterator.hasNext()){
+                        rightIterator.reset();
+                        if(!leftIterator.hasNext()){
+                            leftRecord = null;
+                        }
+                        else {
+                            leftRecord = leftIterator.next();
+                        }
+                        marked = false;
+                    }
+                    else {
+                        rightRecord = rightIterator.next();
+                    }
+                    return true;
+                }
+                else{
+                    rightIterator.reset();
+                    if(!leftIterator.hasNext()){
+                        leftRecord = null;
+                    }
+                    else {
+                        leftRecord = leftIterator.next();
+                    }
+                    marked = false;
+                    return hasNext();
+                }
+            }
         }
 
         /**
@@ -81,8 +147,10 @@ class SortMergeOperator extends JoinOperator {
         @Override
         public Record next() {
             // TODO(proj3_part1): implement
-
-            throw new NoSuchElementException();
+            if(hasNext()){
+                return nextRecord;
+            }
+            return null;
         }
 
         @Override
