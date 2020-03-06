@@ -120,9 +120,6 @@ class BNLJOperator extends JoinOperator {
         }
 
 
-
-
-
         /**
          * Fetches the next record to return, and sets nextRecord to it. If there are no more
          * records to return, a NoSuchElementException should be thrown.
@@ -132,27 +129,29 @@ class BNLJOperator extends JoinOperator {
         private void fetchNextRecord() {
             // TODO(proj3_part1): implement
             this.nextRecord = null;
-            rightRecordIterator.reset();
-            Record right = rightRecordIterator.next();
+            Record right = rightRecordIterator.hasNext() ? rightRecordIterator.next() : null;
             while (!hasNext()) {
-                if (leftRecord != null) {
+                if (right != null) {
                     DataBox leftJoinValue = leftRecord.getValues().get(BNLJOperator.this.getLeftColumnIndex());
                     DataBox rightJoinValue = right.getValues().get(BNLJOperator.this.getRightColumnIndex());
                     if (leftJoinValue.equals(rightJoinValue)) {
-                        this.nextRecord = joinRecords(leftRecord,right);
-                        rightRecordIterator.markPrev();
+                        this.nextRecord = joinRecords(leftRecord, right);
                     }
-                    leftRecord = leftRecordIterator.hasNext() ? leftRecordIterator.next() : null;
-
+                    else {
+                        right = rightRecordIterator.hasNext() ? rightRecordIterator.next() : null;
+                    }
                 } else {
-                    if(rightRecordIterator.hasNext()){
-                        right = rightRecordIterator.next();
-                        leftRecordIterator.reset();
-                        leftRecord = leftRecordIterator.hasNext() ? leftRecordIterator.next() : null;
+                    leftRecord = leftRecordIterator.hasNext() ? leftRecordIterator.next() : null;
+                    if(leftRecord != null){
+                        rightRecordIterator.reset();
                     }
                     else{
                         fetchNextRightPage();
-                        if(rightRecordIterator == null){
+                        if(rightRecordIterator != null){
+                            leftRecordIterator.reset();
+                            leftRecord = leftRecordIterator.next();
+                        }
+                        else{
                             fetchNextLeftBlock();
                             if(leftRecordIterator == null){
                                 throw new NoSuchElementException("end");
@@ -160,14 +159,12 @@ class BNLJOperator extends JoinOperator {
                             rightIterator.reset();
                             fetchNextRightPage();
                         }
-                        right = rightRecordIterator.next();
-                        leftRecordIterator.reset();
-                        leftRecord = leftRecordIterator.hasNext() ? leftRecordIterator.next() : null;
                     }
+                    right = rightRecordIterator.hasNext() ? rightRecordIterator.next() : null;
                 }
             }
-
         }
+
 
         /**
          * Helper method to create a joined record from a record of the left relation
