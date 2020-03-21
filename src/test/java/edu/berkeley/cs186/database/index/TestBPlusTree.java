@@ -17,6 +17,7 @@ import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.BufferManagerImpl;
 import edu.berkeley.cs186.database.memory.ClockEvictionPolicy;
 import edu.berkeley.cs186.database.recovery.DummyRecoveryManager;
+import edu.berkeley.cs186.database.table.Record;
 import org.junit.*;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.DisableOnDebug;
@@ -467,5 +468,69 @@ public class TestBPlusTree {
         assertEquals(3, LeafNode.maxOrder(pageSizeInBytes, keySchema));
         assertEquals(3, InnerNode.maxOrder(pageSizeInBytes, keySchema));
         assertEquals(3, BPlusTree.maxOrder(pageSizeInBytes, keySchema));
+    }
+
+    @Test
+    public void selfTest(){
+        List<DataBox> keys = new ArrayList<>();
+        List<RecordId> rids = new ArrayList<>();
+        List<RecordId> sortedRids = new ArrayList<>();
+        for (int i = 0; i < 1000; ++i) {
+            keys.add(new IntDataBox(i));
+            rids.add(new RecordId(i, (short) i));
+            sortedRids.add(new RecordId(i, (short) i));
+        }
+
+        BPlusTree tree = getBPlusTree(Type.intType(), 2);
+        for (int i = 0; i < keys.size(); ++i) {
+            tree.put(keys.get(i), rids.get(i));
+        }
+        for (int i = 0; i < keys.size(); ++i) {
+            assertEquals(Optional.of(rids.get(i)), tree.get(keys.get(i)));
+        }
+
+        for(int i = keys.size() - 1; i >= 0; i--){
+            assertEquals(tree.scanAll().hasNext(),true);
+            tree.remove(keys.get(i));
+        }
+        assertEquals(tree.scanAll().hasNext(), false);
+        tree = getBPlusTree(Type.intType(), 2);
+        List<Pair<DataBox, RecordId>> data = new ArrayList<>();
+        for (int i = 0; i < 100 ; ++i) {
+            data.add(new Pair<>(new IntDataBox(i), new RecordId(i, (short) i)));
+        }
+
+        tree.bulkLoad(data.iterator(), (float)0.1);
+        assertEquals(tree.scanAll().hasNext(),true);
+        for(int i = 1; i < data.size(); i++){
+            tree.remove(data.get(i).getFirst());
+        }
+        assertEquals(tree.scanAll().hasNext(), true);
+
+        Iterator<RecordId> iter = tree.scanAll();
+        iter.next();
+        assertEquals(tree.scanGreaterEqual(data.get(1).getFirst()).hasNext(), false);
+        assertEquals(tree.scanGreaterEqual(data.get(0).getFirst()).hasNext(), true);
+        assertEquals(tree.scanAll().hasNext(),true );
+
+        tree = getBPlusTree(Type.intType(), 2);
+        tree.bulkLoad(data.iterator(),(float)0.1);
+        assertEquals(tree.get(new IntDataBox(101)), Optional.empty());
+        assertEquals(tree.scanEqual(new IntDataBox(101)).hasNext(), false);
+        assertEquals(tree.scanEqual(new IntDataBox(50)).hasNext(), true);
+        Iterator<RecordId> iter2 = tree.scanEqual(new IntDataBox(50));
+        iter2.next();
+        assertEquals(iter2.hasNext(), false);
+        tree.remove(new IntDataBox((50)));
+        assertEquals(tree.scanEqual(new IntDataBox(50)).hasNext(), false);
+        tree.put(new IntDataBox(100), new RecordId(0, (short)0));
+        Iterator<RecordId> iter3 = tree.scanGreaterEqual(new IntDataBox(99));
+        assertEquals(iter3.hasNext(), true);
+        iter3.next();
+        assertEquals(iter3.hasNext(), true);
+        iter3.next();
+        assertEquals(iter3.hasNext(), false);
+
+
     }
 }

@@ -12,6 +12,7 @@ import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
 
+
 /**
  * A inner node of a B+ tree. Every inner node in a B+ tree of order d stores
  * between d and 2d keys. An inner node with n keys stores n + 1 "pointers" to
@@ -79,8 +80,19 @@ class InnerNode extends BPlusNode {
     @Override
     public LeafNode get(DataBox key) {
         // TODO(proj2): implement
+        for(int i = 0; i < keys.size(); i++){
+            if( i == 0 && key.compareTo(keys.get(i)) < 0){
+                return getChild(i).get(key);
+            }
+            else if (i == 0){
+                continue;
+            }
+            if(key.compareTo(keys.get(i - 1)) >= 0 && key.compareTo(keys.get(i)) < 0){
+                return getChild(i).get(key);
+            }
+        }
+        return getChild(keys.size()).get(key);
 
-        return null;
     }
 
     // See BPlusNode.getLeftmostLeaf.
@@ -89,15 +101,77 @@ class InnerNode extends BPlusNode {
         assert(children.size() > 0);
         // TODO(proj2): implement
 
-        return null;
+        return getChild(0).getLeftmostLeaf();
     }
 
     // See BPlusNode.put.
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
+        Optional<Pair<DataBox, Long>> result = Optional.empty();
+        boolean find = false;
+        for(int i = 0; i < keys.size(); i++){
+            if( i == 0 && key.compareTo(keys.get(i)) < 0){
+                result =  getChild(i).put(key, rid);
+                find = true;
+                continue;
+            }
+            else if (i == 0){
+                continue;
+            }
+            if(key.compareTo(keys.get(i - 1)) >= 0 && key.compareTo(keys.get(i)) < 0){
+                result =  getChild(i).put(key, rid);
+                find = true;
+            }
+        }
+        if(!find) {
+            result = getChild(keys.size()).put(key, rid);
+        }
+        //do not need to split the node
+        if(result.equals(Optional.empty())){
+            return result;
+        }
+        //need to split the node
+        boolean addsuccess = false;
+        for(int i = 0; i < keys.size(); i++){
+            if(key.compareTo(keys.get(i)) < 0){
+                keys.add(i, result.get().getFirst());
+                children.add(i + 1, result.get().getSecond());
+                addsuccess = true;
+                break;
+            }
+        }
+        if(!addsuccess){
+            keys.add(result.get().getFirst());
+            children.add(result.get().getSecond());
+        }
+        if(keys.size() <= this.metadata.getOrder() * 2){
+            this.sync();
+            return Optional.empty();
+        }
+        else{
+            List<DataBox> newkeys = new ArrayList<>();
+            List<Long> newchildren = new ArrayList<>();
+            int middle = keys.size() / 2;
+            int index = middle + 1;
+            for(int i = 0; i < middle; i++){
+                newkeys.add(keys.get(index));
+                newchildren.add(children.get(index));
+                keys.remove(index);
+                children.remove(index);
+            }
+            newchildren.add(children.get(index));
+            children.remove(index);
+            InnerNode right = new InnerNode(this.metadata, this.bufferManager, newkeys,
+                    newchildren, treeContext);
+            DataBox splitKey = keys.remove(middle);
+            this.sync();
+            right.sync();
+            return Optional.of(new Pair<>(splitKey, right.getPage().getPageNum()));
 
-        return Optional.empty();
+        }
+
+
     }
 
     // See BPlusNode.bulkLoad.
@@ -105,7 +179,40 @@ class InnerNode extends BPlusNode {
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
             float fillFactor) {
         // TODO(proj2): implement
+        while(data.hasNext()) {
+            BPlusNode rightmost = this.getChild(this.children.size() - 1);
+            Optional<Pair<DataBox, Long>> result = rightmost.bulkLoad(data, fillFactor);
+            if (result.equals(Optional.empty())) {
+                return result;
+            }
+            keys.add(result.get().getFirst());
+            children.add(result.get().getSecond());
 
+            if (keys.size() <= this.metadata.getOrder() * 2) {
+                this.sync();
+                return Optional.empty();
+            } else {
+                List<DataBox> newkeys = new ArrayList<>();
+                List<Long> newchildren = new ArrayList<>();
+                int middle = keys.size() / 2;
+                int index = middle + 1;
+                for (int i = 0; i < middle; i++) {
+                    newkeys.add(keys.get(index));
+                    newchildren.add(children.get(index));
+                    keys.remove(index);
+                    children.remove(index);
+                }
+                newchildren.add(children.get(index));
+                children.remove(index);
+                InnerNode right = new InnerNode(this.metadata, this.bufferManager, newkeys,
+                        newchildren, treeContext);
+                DataBox splitKey = keys.remove(middle);
+                this.sync();
+                right.sync();
+                return Optional.of(new Pair<DataBox, Long>(splitKey, right.getPage().getPageNum()));
+
+            }
+        }
         return Optional.empty();
     }
 
@@ -113,8 +220,25 @@ class InnerNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
+        for(int i = 0; i < keys.size(); i++){
+            if( i == 0 && key.compareTo(keys.get(i)) < 0){
+                getChild(i).remove(key);
+                sync();
+                return;
+            }
+            else if (i == 0){
+                continue;
+            }
+            if(key.compareTo(keys.get(i - 1)) >= 0 && key.compareTo(keys.get(i)) < 0){
+                getChild(i).remove(key);
+                sync();
+                return;
+            }
+        }
+        getChild(keys.size()).remove(key);
 
-        return;
+
+
     }
 
     // Helpers ///////////////////////////////////////////////////////////////////
