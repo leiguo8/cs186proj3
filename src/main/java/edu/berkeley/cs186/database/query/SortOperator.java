@@ -158,6 +158,9 @@ public class SortOperator {
             pass0.add(sortRun(curr));
         }
         List<Run> result = mergePass(pass0);
+        if(result.size() == 0){
+            return this.tableName;
+        }
         while(result.size() != 1){
             result = mergePass(result);
         }

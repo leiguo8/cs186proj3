@@ -45,14 +45,13 @@ public class GraceHashJoin {
 
     /**
      * Partition stage.
-     *
+     * <p>
      * For every record in the given iterator, hashes the value from the
      * column we're joining on and adds it to the correct partition in
      * partitions.
-     *
+     * <p>
      * It will be helpful to take a look at HashPartition.java to see what methods you can use
      * to add the record to the correct partition.
-     *
      */
     private void partition(HashPartition[] partitions, Iterator<Record> records, boolean left,
                            int pass) {
@@ -65,6 +64,20 @@ public class GraceHashJoin {
         // starting point. Make sure to use the hash function we provide to you
         // by calling hashFunc.apply(databox) to get an integer valued hash code
         // from a DataBox object.
+        while (records.hasNext()) {
+            Record record = records.next();
+            DataBox columnValue = record.getValues().get(columnIndex);
+            int hash = hashFunc.apply(columnValue);
+            int number = (hash % partitions.length);
+            if (number < 0) {
+                number += partitions.length;
+            }
+            if (left) {
+                partitions[number].addLeftRecord(record);
+            } else {
+                partitions[number].addRightRecord(record);
+            }
+        }
 
         return;
     }
@@ -73,8 +86,9 @@ public class GraceHashJoin {
      * Runs the buildAndProbe stage on a given partition.
      * To make things easier we set up 5 variables for you to use for the
      * building and probing phases.
-     *
+     * <p>
      * Returns a list of the joined records
+     *
      * @param partition An iterator of Records from a partition
      */
     private List<Record> buildAndProbe(HashPartition partition) {
@@ -99,8 +113,8 @@ public class GraceHashJoin {
             probeFirst = true; // When we join the records, the record used to probe will be on the left
         } else {
             throw new IllegalArgumentException(
-                "Neither the left nor the right records in this partition " +
-                "fit in B-2 pages of memory."
+                    "Neither the left nor the right records in this partition " +
+                            "fit in B-2 pages of memory."
             );
         }
         if (!materializeJoin) {
@@ -119,6 +133,32 @@ public class GraceHashJoin {
         // Check out how NaiveHashJoin implements this function if you feel stuck.
 
         // Return the records
+        Map<DataBox, List<Record>> map = new HashMap<>();
+
+        while (buildRecords.hasNext()) {
+            Record curr = buildRecords.next();
+            DataBox joinvalue = curr.getValues().get(buildColumnIndex);
+            if (!map.containsKey(joinvalue)) {
+                map.put(joinvalue, new ArrayList<>());
+            }
+            map.get(joinvalue).add(curr);
+        }
+        while(probeRecords.hasNext()){
+            Record probcurr = probeRecords.next();
+            DataBox probvalue = probcurr.getValues().get(probeColumnIndex);
+            if(map.containsKey(probvalue)){
+                for(Record i : map.get(probvalue)){
+                    if(!probeFirst){
+                        Record joinresult = joinRecords(i, probcurr);
+                        joinedRecords.add(joinresult);
+                    }
+                    else{
+                        Record joinresult = joinRecords(probcurr, i);
+                        joinedRecords.add(joinresult);
+                    }
+                }
+            }
+        }
         return joinedRecords;
     }
 
@@ -128,7 +168,7 @@ public class GraceHashJoin {
      * If we can run build and probe on a partition we should immediately do so,
      * otherwise we should apply the grace hash join algorithm recursively to
      * break up the partitions further.
-     *
+     * <p>
      * Once all partitions have been conquered return a list of all the joined
      * records from leftRecords and rightRecords
      *
@@ -160,6 +200,14 @@ public class GraceHashJoin {
             //
             // You may find the ArrayList.addAll method useful here.
             // It may be helpful to read through the HashPartition.java class for methods that will be useful here
+            List<Record> temp = null;
+            try{
+                temp = buildAndProbe(partition);
+            }
+            catch (IllegalArgumentException e){
+                temp = run(partition.getLeftIterator(), partition.getRightIterator(),pass + 1);
+            }
+            joinedRecords.addAll(temp);
         }
         return joinedRecords;
     }
@@ -172,7 +220,7 @@ public class GraceHashJoin {
     /**
      * Create an appropriate number of HashPartitions relative to the
      * number of available buffers we have and return an array
-     *
+     * <p>
      * You should first know the answer to how many partitions will be created!
      *
      * @return an array of HashPartitions
@@ -181,17 +229,23 @@ public class GraceHashJoin {
         // TODO(proj3_part1): create an array of partitions
         // You may find the provided helper function
         // createPartition() useful here.
-
-        return null;
+        int number = this.numBuffers - 1;
+        HashPartition[] result = new HashPartition[number];
+        for (int i = 0; i < number; i++) {
+            result[i] = createPartition();
+        }
+        return result;
     }
 
     // Feel free to add your own helper methods here if you wish to do so
 
     //////////////////////////////////////// BUILT-IN HELPER METHODS /////////////////////////////////////
+
     /**
      * Helper method to create a joined record from a record of the left relation
      * and a record of the right relation.
-     * @param leftRecord Record from the left relation
+     *
+     * @param leftRecord  Record from the left relation
      * @param rightRecord Record from the right relation
      * @return joined record
      */
@@ -206,9 +260,10 @@ public class GraceHashJoin {
      * Helper method to join together a record from the build stage to a record
      * from the probe stage. Since build or probe could be from either the left
      * or right partition, make sure you set probeFirst properly!
+     *
      * @param buildRecord record used in the build phase
      * @param probeRecord record used to probe
-     * @param probeFirst true if the probe record is from the left relation, otherwise false
+     * @param probeFirst  true if the probe record is from the left relation, otherwise false
      * @return joined record
      */
     private Record joinRecords(Record buildRecord, Record probeRecord, boolean probeFirst) {
@@ -222,6 +277,7 @@ public class GraceHashJoin {
 
     /**
      * Creates a new hash partition
+     *
      * @return a new hash partition
      */
     private HashPartition createPartition() {
@@ -230,6 +286,7 @@ public class GraceHashJoin {
 
     /**
      * Get left column index we are joining on
+     *
      * @return left column index
      */
     private int getLeftColumnIndex() {
@@ -238,6 +295,7 @@ public class GraceHashJoin {
 
     /**
      * Get right column index we are joining on
+     *
      * @return right column index
      */
     private int getRightColumnIndex() {
@@ -246,6 +304,7 @@ public class GraceHashJoin {
 
     /**
      * Creates a record using val as the value for a single column of type int
+     *
      * @param val value the field will take
      * @return a record
      */
@@ -259,14 +318,14 @@ public class GraceHashJoin {
 
     /**
      * This method is called in testBreakNHJButPassGHJ.
-     *
+     * <p>
      * Come up with two lists of records for leftRecords and rightRecords such that NHJ will error when given
      * those relations, but GHJ will successfully run.
-     *
+     * <p>
      * createRecord() takes in a value and returns a record with that value.
-     *
+     * <p>
      * Lists cannot be empty or the joins will error!
-     *
+     * <p>
      * You may find the following information useful:
      * Maximum 976 Records per page
      * B = 6
@@ -278,20 +337,29 @@ public class GraceHashJoin {
         ArrayList<Record> rightRecords = new ArrayList<>();
 
         // TODO(proj3_part1): populate leftRecords and rightRecords such that NHJ breaks but not GHJ
+        int numberforleft = 4 * 976 + 10;
+        List<DataBox> value = new ArrayList<>();
+        value.add(new IntDataBox(1));
+        for(int i = 0; i < numberforleft; i++){
+            leftRecords.add(new Record(value));
+        }
+        for(int i = 0; i < 10; i++){
+            rightRecords.add(new Record(value));
+        }
 
         return new Pair<>(leftRecords, rightRecords);
     }
 
     /**
      * This method is called in testGHJBreak.
-     *
+     * <p>
      * Come up with two lists of records for leftRecords and rightRecords such that GHJ will error (in our case
      * hit the max pass cap).
-     *
+     * <p>
      * createRecord() takes in a value and returns a record with that value.
-     *
+     * <p>
      * Lists cannot be empty or the joins will error!
-     *
+     * <p>
      * You may find the following information useful:
      * Maximum 976 records per page
      * B = 6
@@ -303,6 +371,15 @@ public class GraceHashJoin {
         ArrayList<Record> rightRecords = new ArrayList<>();
 
         // TODO(proj3_part1): populate leftRecords and rightRecords such that GHJ breaks
+        int number = 100000;
+        List<DataBox> value = new ArrayList<>();
+        value.add(new IntDataBox(1));
+        for(int i = 0; i < number; i++){
+            leftRecords.add(new Record(value));
+        }
+        for(int i = 0; i < number; i++){
+            rightRecords.add(new Record(value));
+        }
 
         return new Pair<>(leftRecords, rightRecords);
     }
