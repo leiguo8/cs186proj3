@@ -21,7 +21,33 @@ public enum LockType {
             throw new NullPointerException("null lock type");
         }
         // TODO(proj4_part1): implement
-
+        if(a == NL || b == NL){
+            return true;
+        }
+        else if (a == IS){
+            if( b == X){
+                return false;
+            }
+            return true;
+        }
+        else if(a == IX){
+            if(b == S || b == SIX || b == X){
+                return false;
+            }
+            return true;
+        }
+        else if(a == S){
+            if(b == IX || b == SIX || b == X){
+                return false;
+            }
+            return true;
+        }
+        else if(a == SIX){
+            if(b == NL || b == IS){
+                return true;
+            }
+            return false;
+        }
         return false;
     }
 
@@ -53,8 +79,39 @@ public enum LockType {
             throw new NullPointerException("null lock type");
         }
         // TODO(proj4_part1): implement
-
-        return false;
+        if(parentLockType == NL){
+            if(childLockType == NL){
+                return true;
+            }
+            return false;
+        }
+        else if(parentLockType == S){
+            if(childLockType == NL){
+                return true;
+            }
+            return false;
+        }
+        else if(parentLockType == X){
+            if(childLockType != NL){
+                return false;
+            }
+            return true;
+        }
+        else if(parentLockType == IS){
+            if(childLockType == NL || childLockType == IS || childLockType == S){
+                return true;
+            }
+            return false;
+        }
+        else if(parentLockType == IX){
+            return true;
+        }
+        else{
+            if(childLockType == IS || childLockType == S){
+                return false;
+            }
+            return true;
+        }
     }
 
     /**
@@ -68,8 +125,43 @@ public enum LockType {
             throw new NullPointerException("null lock type");
         }
         // TODO(proj4_part1): implement
+        if(substitute == NL){
+            if(required != NL){
+                return false;
+            }
+            return true;
+        }
+        else if (substitute == S){
+            if(required == S || required == NL){
+                return true;
+            }
+            return false;
+        }
+        else if(substitute == X){
+            if(required == S || required == NL || required == X){
+                return true;
+            }
+            return false;
+        }
+        else if(substitute == IS){
+            if(required == NL || required == IS){
+                return true;
+            }
+            return false;
+        }
+        else if(substitute == IX){
+            if(required == NL || required == IX || required == IS){
+                return true;
+            }
+            return false;
+        }
+        else{
+            if(required == NL || required == SIX || required == S){
+                return true;
+            }
+            return false;
+        }
 
-        return false;
     }
 
     @Override
