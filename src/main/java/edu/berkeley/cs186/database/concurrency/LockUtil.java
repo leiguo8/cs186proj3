@@ -2,7 +2,8 @@ package edu.berkeley.cs186.database.concurrency;
 // If you see this line, you have successfully pulled the latest changes from the skeleton for proj4!
 import edu.berkeley.cs186.database.TransactionContext;
 
-import java.util.concurrent.locks.Lock;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * LockUtil is a declarative layer which simplifies multigranularity lock acquisition
@@ -42,7 +43,15 @@ public class LockUtil {
                     lockContext.acquire(transaction, lockType);
                 }
                 else{
-                    lockContext.promote(transaction, lockType);
+                    if(currHold == LockType.IX){
+                        List<ResourceName> needRelease = sisDescendants(transaction, lockContext);
+                        needRelease.add(lockContext.name);
+                        lockContext.lockman.acquireAndRelease(transaction, lockContext.name, LockType.SIX,
+                                needRelease);
+                    }
+                    else{
+                        lockContext.escalate(transaction);
+                    }
                 }
 
             }
@@ -71,8 +80,24 @@ public class LockUtil {
         LockType parentLockType = parent.lockman.getLockType(transaction, parent.name);
         if(!LockType.substitutable(parentLockType, lockType)){
             helperParentGetLock(transaction, parent, lockType);
-            parent.acquire(transaction, lockType);
+            if(parent.lockman.getLockType(transaction,parent.name) == LockType.NL) {
+                parent.acquire(transaction, lockType);
+            }else{
+                parent.promote(transaction, lockType);
+            }
         }
         return;
+    }
+
+    private static List<ResourceName> sisDescendants(TransactionContext transaction, LockContext lockContext) {
+        // TODO(proj4_part2): implement
+        List<ResourceName> result = new ArrayList<>();
+        List<edu.berkeley.cs186.database.concurrency.Lock> alllocks = lockContext.lockman.getLocks(transaction);
+        for(Lock lock : alllocks){
+            if((lock.lockType == LockType.S || lock.lockType == LockType.IS) && lock.name.isDescendantOf(lockContext.name)){
+                result.add(lock.name);
+            }
+        }
+        return result;
     }
 }

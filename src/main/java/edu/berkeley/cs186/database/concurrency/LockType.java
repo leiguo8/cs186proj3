@@ -132,13 +132,13 @@ public enum LockType {
             return true;
         }
         else if (substitute == S){
-            if(required == S || required == NL){
+            if(required == S || required == NL || required == IS){
                 return true;
             }
             return false;
         }
         else if(substitute == X){
-            if(required == S || required == NL || required == X){
+            if(required == S || required == NL || required == X || required == IS || required == IX || required ==SIX){
                 return true;
             }
             return false;
@@ -156,7 +156,7 @@ public enum LockType {
             return false;
         }
         else{
-            if(required == NL || required == SIX || required == S){
+            if(required == NL || required == SIX || required == S || required == IX){
                 return true;
             }
             return false;
