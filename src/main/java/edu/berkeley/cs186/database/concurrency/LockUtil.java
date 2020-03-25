@@ -2,6 +2,8 @@ package edu.berkeley.cs186.database.concurrency;
 // If you see this line, you have successfully pulled the latest changes from the skeleton for proj4!
 import edu.berkeley.cs186.database.TransactionContext;
 
+import java.util.concurrent.locks.Lock;
+
 /**
  * LockUtil is a declarative layer which simplifies multigranularity lock acquisition
  * for the user (you, in the second half of Part 2). Generally speaking, you should use LockUtil
@@ -23,8 +25,54 @@ public class LockUtil {
 
         TransactionContext transaction = TransactionContext.getTransaction(); // current transaction
 
+        if(transaction == null){
+            return;
+        }
+        if(lockType == LockType.NL){
+            return;
+        }
+        LockType currHold = lockContext.lockman.getLockType(transaction, lockContext.name);
+        if(currHold == lockType || LockType.substitutable(currHold, lockType)){
+            return;
+        }
+        else{
+            if(lockType == LockType.S){
+                helperParentGetLock(transaction, lockContext, LockType.IS);
+                if(currHold == LockType.NL){
+                    lockContext.acquire(transaction, lockType);
+                }
+                else{
+                    lockContext.promote(transaction, lockType);
+                }
+
+            }
+            if(lockType == LockType.X){
+                helperParentGetLock(transaction, lockContext, LockType.IX);
+                if(currHold == LockType.NL){
+                    lockContext.acquire(transaction, lockType);
+                }
+                else{
+                    lockContext.escalate(transaction);
+                    lockContext.promote(transaction, lockType);
+                }
+            }
+        }
+
         return;
     }
 
     // TODO(proj4_part2): add helper methods as you see fit
+
+    private static void helperParentGetLock(TransactionContext transaction, LockContext lockContext, LockType lockType){
+        LockContext parent = lockContext.parent;
+        if(parent == null){
+            return;
+        }
+        LockType parentLockType = parent.lockman.getLockType(transaction, parent.name);
+        if(!LockType.substitutable(parentLockType, lockType)){
+            helperParentGetLock(transaction, parent, lockType);
+            parent.acquire(transaction, lockType);
+        }
+        return;
+    }
 }

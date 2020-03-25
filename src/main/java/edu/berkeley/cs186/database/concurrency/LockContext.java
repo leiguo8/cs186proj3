@@ -222,9 +222,14 @@ public class LockContext {
             if(lock.name.isDescendantOf(name)){
                 result.add(lock.name);
             }
-            if(lock.lockType == LockType.X || lock.lockType == LockType.SIX || lock.lockType == LockType.IX){
+            if((lock.name.isDescendantOf(name) || lock.name.equals(name)) &&
+                    (lock.lockType == LockType.X || lock.lockType == LockType.SIX || lock.lockType == LockType.IX)){
                 hasX = true;
             }
+        }
+        if(result.size() == 0 && (lockman.getLockType(transaction, name) == LockType.X ||
+                lockman.getLockType(transaction, name) == LockType.S )){
+            return;
         }
         result.add(this.name);
         if(hasX) {
