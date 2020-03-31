@@ -23,7 +23,6 @@ public class LockUtil {
      */
     public static void ensureSufficientLockHeld(LockContext lockContext, LockType lockType) {
         // TODO(proj4_part2): implement
-
         TransactionContext transaction = TransactionContext.getTransaction(); // current transaction
 
         if(transaction == null){
@@ -95,7 +94,13 @@ public class LockUtil {
             if(parent.lockman.getLockType(transaction,parent.name) == LockType.NL) {
                 parent.acquire(transaction, lockType);
             }else{
-                parent.promote(transaction, lockType);
+                if(parentLockType == LockType.IX && lockType == LockType.S ||
+                        parentLockType == LockType.S && lockType == LockType.IX){
+                    parent.promote(transaction, LockType.SIX);
+                }
+                else {
+                    parent.promote(transaction, lockType);
+                }
             }
         }
         else if (parentLockType != LockType.IS && parentLockType != LockType.IX){

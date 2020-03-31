@@ -631,6 +631,7 @@ public class Database implements AutoCloseable {
         boolean mayNeedToCreate = !tableInfoLookup.containsKey(tableName);
         if (mayNeedToCreate) {
             // TODO(proj4_part3): acquire all locks needed on database/information_schema.tables before compute()
+            LockUtil.ensureSufficientLockHeld(getTableInfoContext(), lockType);
             tableInfoLookup.compute(tableName, (tableName_, recordId) -> {
                 if (recordId != null) { // record created between containsKey call and this
                     return recordId;
@@ -640,6 +641,10 @@ public class Database implements AutoCloseable {
             });
         }
 
+        TableInfoRecord record = getTableMetadata(tableName);
+        if(lockType != LockType.NL) {
+            LockUtil.ensureSufficientLockHeld(getTableInfoContext().childContext(record.pageNum), lockType);
+        }
         // TODO(proj4_part3): acquire all locks needed on the row in information_schema.tables
     }
 
@@ -659,6 +664,7 @@ public class Database implements AutoCloseable {
         boolean mayNeedToCreate = !indexInfoLookup.containsKey(indexName);
         if (mayNeedToCreate) {
             // TODO(proj4_part3): acquire all locks needed on database/information_schema.indices before compute()
+            LockUtil.ensureSufficientLockHeld(getIndexInfoContext(), lockType);
             indexInfoLookup.compute(indexName, (indexName_, recordId) -> {
                 if (recordId != null) { // record created between containsKey call and this
                     return recordId;
@@ -676,7 +682,8 @@ public class Database implements AutoCloseable {
                         ));
             });
         }
-
+        BPlusTreeMetadata record = getIndexMetadata(getTableInfoContext().getResourceName().toString(),indexName);
+//        LockUtil.ensureSufficientLockHeld(getIndexContext(record.getColName()), LockType.S);
         // TODO(proj4_part3): acquire all locks needed on the row in information_schema.indices
     }
 

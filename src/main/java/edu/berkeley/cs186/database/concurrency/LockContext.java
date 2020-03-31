@@ -178,6 +178,9 @@ public class LockContext {
                 }
             }
             this.numChildLocks.put(transaction.getTransNum(), this.numChildLocks.get(transaction.getTransNum()) - needRelease.size());
+            needRelease.add(this.name);
+            this.lockman.acquireAndRelease(transaction, name, newLockType, needRelease);
+            return;
         }
         this.lockman.promote(transaction,name,newLockType);
         return;
@@ -378,6 +381,14 @@ public class LockContext {
     @Override
     public String toString() {
         return "LockContext(" + name.toString() + ")";
+    }
+
+    public Map<Long, Integer> getNumChildLocks(){
+        return this.numChildLocks;
+    }
+
+    public LockManager getLockManager(){
+        return this.lockman;
     }
 }
 
