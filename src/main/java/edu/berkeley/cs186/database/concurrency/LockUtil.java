@@ -33,12 +33,17 @@ public class LockUtil {
             return;
         }
         LockType currHold = lockContext.lockman.getLockType(transaction, lockContext.name);
+        boolean[] justReturn = new boolean[1];
+        justReturn[0] = false;
         if(currHold == lockType || LockType.substitutable(currHold, lockType)){
             return;
         }
         else{
             if(lockType == LockType.S){
-                helperParentGetLock(transaction, lockContext, LockType.IS);
+                helperParentGetLock(transaction, lockContext, LockType.IS, justReturn);
+                if(justReturn[0]){
+                    return;
+                }
                 if(currHold == LockType.NL){
                     lockContext.acquire(transaction, lockType);
                 }
@@ -56,7 +61,10 @@ public class LockUtil {
 
             }
             if(lockType == LockType.X){
-                helperParentGetLock(transaction, lockContext, LockType.IX);
+                helperParentGetLock(transaction, lockContext, LockType.IX, justReturn);
+                if(justReturn[0]){
+                    return;
+                }
                 if(currHold == LockType.NL){
                     lockContext.acquire(transaction, lockType);
                 }
@@ -72,19 +80,26 @@ public class LockUtil {
 
     // TODO(proj4_part2): add helper methods as you see fit
 
-    private static void helperParentGetLock(TransactionContext transaction, LockContext lockContext, LockType lockType){
+    private static void helperParentGetLock(TransactionContext transaction, LockContext lockContext, LockType lockType,
+                                            boolean[] justReturn){
         LockContext parent = lockContext.parent;
         if(parent == null){
             return;
         }
         LockType parentLockType = parent.lockman.getLockType(transaction, parent.name);
         if(!LockType.substitutable(parentLockType, lockType)){
-            helperParentGetLock(transaction, parent, lockType);
+            helperParentGetLock(transaction, parent, lockType, justReturn);
+            if(justReturn[0]){
+                return;
+            }
             if(parent.lockman.getLockType(transaction,parent.name) == LockType.NL) {
                 parent.acquire(transaction, lockType);
             }else{
                 parent.promote(transaction, lockType);
             }
+        }
+        else if (parentLockType != LockType.IS && parentLockType != LockType.IX){
+            justReturn[0] = true;
         }
         return;
     }

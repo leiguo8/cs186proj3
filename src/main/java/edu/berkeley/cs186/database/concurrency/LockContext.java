@@ -132,7 +132,8 @@ public class LockContext {
         if(this.readonly){
             throw new UnsupportedOperationException("Unsupported Operation");
         }
-        if(numChildLocks.get(transaction.getTransNum()) > 0){
+
+        if(numChildLocks.get(transaction.getTransNum()) != null && numChildLocks.get(transaction.getTransNum()) > 0){
             throw new InvalidLockException("Children has lock");
         }
         this.lockman.release(transaction, name);

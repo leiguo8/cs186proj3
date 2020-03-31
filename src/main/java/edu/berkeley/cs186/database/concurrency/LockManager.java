@@ -100,12 +100,22 @@ public class LockManager {
                         old = currLock;
                     }
                 }
+                int index1 = -1;
+                int index2 = -1;
                 if (substitutable) {
+                    index1 = holdlocks.indexOf(old);
                     holdlocks.remove(old);
+                    index2 = locks.indexOf(old);
                     locks.remove(old);
                 }
-                holdlocks.add(lock);
-                locks.add(lock);
+                if(index1 != -1){
+                    holdlocks.add(index1, lock);
+                    locks.add(index2, lock);
+                }
+                else {
+                    holdlocks.add(lock);
+                    locks.add(lock);
+                }
                 return;
             }
         }
@@ -347,7 +357,7 @@ public class LockManager {
             ResourceName curr = name;
             boolean find = false;
             for (Lock lock : transactionLocks.get(transaction.getTransNum())) {
-                if (lock.name == curr) {
+                if (lock.name.toString().equals(curr.toString())) {
                     find = true;
                 }
             }

@@ -7,6 +7,7 @@ import java.util.*;
 
 import edu.berkeley.cs186.database.TransactionContext;
 import edu.berkeley.cs186.database.common.Pair;
+import edu.berkeley.cs186.database.concurrency.Lock;
 import edu.berkeley.cs186.database.concurrency.LockContext;
 import edu.berkeley.cs186.database.concurrency.LockType;
 import edu.berkeley.cs186.database.concurrency.LockUtil;
@@ -88,7 +89,8 @@ public class BPlusTree {
      */
     public BPlusTree(BufferManager bufferManager, BPlusTreeMetadata metadata, LockContext lockContext) {
         // TODO(proj4_part3): B+ tree locking
-
+        lockContext.disableChildLocks();
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         // Sanity checks.
         if (metadata.getOrder() < 0) {
             String msg = String.format(
@@ -138,7 +140,7 @@ public class BPlusTree {
     public Optional<RecordId> get(DataBox key) {
         typecheck(key);
         // TODO(proj2): implement
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.S);
         LeafNode leaf = root.get(key);
         // TODO(proj4_part2): B+ tree locking
         List<DataBox> keys = leaf.getKeys();
@@ -160,7 +162,7 @@ public class BPlusTree {
     public Iterator<RecordId> scanEqual(DataBox key) {
         typecheck(key);
         // TODO(proj4_part3): B+ tree locking
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.S);
         Optional<RecordId> rid = get(key);
         if (rid.isPresent()) {
             ArrayList<RecordId> l = new ArrayList<>();
@@ -199,7 +201,7 @@ public class BPlusTree {
     public Iterator<RecordId> scanAll() {
         // TODO(proj2): Return a BPlusTreeIterator.
         // TODO(proj4_part3): B+ tree locking
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.S);
         return new BPlusTreeIterator(false, null);
     }
 
@@ -230,7 +232,7 @@ public class BPlusTree {
         typecheck(key);
         // TODO(proj2): Return a BPlusTreeIterator.
         // TODO(proj4_part3): B+ tree locking
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.S);
         return new BPlusTreeIterator(true, key);
     }
 
@@ -258,7 +260,7 @@ public class BPlusTree {
             root = newroot;
         }
         // TODO(proj4_part2): B+ tree locking
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
 
 
     }
@@ -283,7 +285,7 @@ public class BPlusTree {
     public void bulkLoad(Iterator<Pair<DataBox, RecordId>> data, float fillFactor) {
         // TODO(proj2): implement
         // TODO(proj4_part3): B+ tree locking
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         while(data.hasNext()) {
             Optional<Pair<DataBox, Long>> result = root.bulkLoad(data, fillFactor);
             if (!result.equals(Optional.empty())) {
@@ -318,7 +320,7 @@ public class BPlusTree {
     public void remove(DataBox key) {
         typecheck(key);
         // TODO(proj2): implement
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         // TODO(proj4_part2): B+ tree locking
         root.remove(key);
 
@@ -332,6 +334,7 @@ public class BPlusTree {
      */
     public String toSexp() {
         // TODO(proj4_part3): B+ tree locking
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         return root.toSexp();
     }
 
@@ -349,6 +352,7 @@ public class BPlusTree {
      */
     public String toDot() {
         // TODO(proj4_part3): B+ tree locking
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         List<String> strings = new ArrayList<>();
         strings.add("digraph g {" );
         strings.add("  node [shape=record, height=0.1];");

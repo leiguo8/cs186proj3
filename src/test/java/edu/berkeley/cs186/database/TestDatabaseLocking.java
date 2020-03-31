@@ -257,8 +257,9 @@ public class TestDatabaseLocking {
         Record input = TestUtils.createRecordWithAllTypes();
         List<DataBox> values = input.getValues();
 
-        try(Transaction t0 = beginTransaction()) {
+        try (Transaction t0 = beginTransaction()){
             t0.getTransactionContext().deleteRecord(tableName, rids.get(rids.size() - 1));
+
         } finally {
             this.db.waitAllTransactions();
         }
